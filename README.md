@@ -1,0 +1,4 @@
+PS_COCOS2DX
+===========
+
+通过PS导出COCOS2DX的UI
