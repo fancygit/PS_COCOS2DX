@@ -2,19 +2,16 @@ var doc = app.activeDocument;
 var doc_name = doc.name;
 
 //	模版文件的路径
-//var tpl_save_path = "E:/PS_Export/template/";
 var tpl_save_path = "~/Tools/PS_COCOS2DX/template/";
-
 //	输出文件的路径
-//var dest_file = "E:/yoyo/ps导出/"+doc_name.replace('psd', 'h');
-//var dest_file = "/Users/dotboy/Work/ps导出/"+doc_name.replace('psd', 'h');
-var dest_file = "~/Projects/YOYO/YOYO/UI/"+doc_name.replace('psd', 'h');
-
-//	导出图片的路径
-//var save_path = "E:/yoyo/ps导出/";   
-//var save_path = "/Users/dotboy/Work/ps导出/";
+//var dest_file = "~/Tools/PS_COCOS2DX/output/"+doc_name.replace(/\..*/, '.h');
+var dest_file = "~/Projects/ios/FlowerFormer/Classes/PSUI/"+doc_name.replace(/\..*/, '.h');
+//	导出图片的路径(暂时没有导出)
 var save_path = "~/Projects/YOYO/YOYO/images/";
 
+/**
+ * @brief 读取模板文件
+ */
 function readTpl(name){
 	var filename = tpl_save_path+name;
 	var file = new File(filename);
@@ -26,10 +23,16 @@ function readTpl(name){
 
 var header = readTpl('header.tpl');
 var footer = readTpl('footer.tpl');
-var Layer= readTpl('Layer.tpl');
+var Layer = readTpl('Layer.tpl');
+var UIButton = readTpl('UIButton.tpl');
+var Sprite = readTpl('Sprite.tpl');
+var Label = readTpl('Label.tpl');
 
 header = substitute(header, new object);
 
+/**
+ *	处理组
+ */
 function proc_group(layers, parentLayer){
 	for(var i=layers.length-1; i>=0; i--){
 		var layer = layers[i]; 
@@ -50,16 +53,19 @@ function proc_group(layers, parentLayer){
 		}
 		else{
 			//	遍历组
-			var b = layer.bounds;
+			var bounds = layer.bounds;
 			var parsed_info = new object();
 
-			parsed_info.x = parseInt(b[0])/2;
-			parsed_info.y = parseInt(b[1])/2 - 64;
-			parsed_info.w = parseInt(b[2] - b[0])/2;
-			parsed_info.h = parseInt(b[3] - b[1])/2;
+			parsed_info.x = parseInt(bounds[0])/2;
+			parsed_info.y = parseInt(bounds[1])/2 - 64;
+			parsed_info.w = parseInt(bounds[2] - bounds[0])/2;
+			parsed_info.h = parseInt(bounds[3] - bounds[1])/2;
 
+			//	classname是指实例对象的类名,而非导出的整体的类名
+			//	导出的类名与文件名一致
 			var classname = getClassName(layer.name);
 			parsed_info.name = getInstanceName(layer.name);
+			//	获取源字串
 			var source_string = getSourceString(classname);
 			var code = substitute(source_string, parsed_info);
 			header += code;
@@ -69,12 +75,70 @@ function proc_group(layers, parentLayer){
 	}
 }
 
+/**
+ * 	处理坐标
+ *  anchorPoint
+ * 	1 2 3
+ *  4 5 6 
+ *  7 8 9
+ */
+function proc_position(sel_bounds, parent_bounds, parsed_info)
+{
+	var screen_height = 960;
+	parsed_info.w = parseInt(sel_bounds[2]-sel_bounds[0]);
+	parsed_info.h = parseInt(sel_bounds[3]-sel_bounds[1]);
+	parsed_info.leftx = parseInt(sel_bounds[0]);
+	parsed_info.topy  = parseInt(sel_bounds[1]);
+
+	var classname = parsed_info.classname;
+	parsed_info.anchorPoint=5;
+	if( 'Layer' == classname)
+	{
+		parsed_info.anchorPoint=7;
+	}
+
+	var x,y,w,h;
+	switch(parsed_info.anchorPoint)
+	{
+		case 5:
+		x=parsed_info.leftx+parsed_info.w/2;
+		y=parsed_info.topy+parsed_info.h/2;
+		break;
+		case 7:
+		x=parsed_info.leftx;
+		y=parsed_info.topy+parsed_info.h;
+		break;
+		default:
+		break;
+	}
+	parsed_info.x = x;
+	parsed_info.y = screen_height - y;
+
+}
+
+/**
+ * 处理层
+ * ps的坐标系是从上到下，从左到右
+ * bounds 的坐标是左上角的坐标和右下角的坐标
+ * Layer默认是左下角
+ * Sprite默认是中心点
+ * Button也是默认中心点
+ */
 function proc_layer(art_layer, parentLayer){
 	//	解析名称
 	var name = art_layer.name;
 	var parsed_info = new object();
-	var b = art_layer.bounds;
-	var pb = parentLayer.bounds;
+
+	//	解析类名
+	parsed_info.classname = getClassName(name);
+	//	解析变量名
+	parsed_info.name = getInstanceName(name);
+	var bounds  = art_layer.bounds;
+	var parent_bounds = parentLayer.bounds;
+	proc_position(bounds , parent_bounds, parsed_info);
+
+	/*
+	//	未处理嵌套dotboy
 	if( parentLayer != 'root')
 	{
 		var pb = parentLayer.bounds;
@@ -83,7 +147,7 @@ function proc_layer(art_layer, parentLayer){
 		b[0] = parseInt(b[0]) - parseInt(pb[0]);
 		b[1] = parseInt(b[1]) - parseInt(pb[1]);
 		parsed_info.x = parseInt(b[0])/2;
-		parsed_info.y = parseInt(b[1])/2;
+		parsed_info.y = 480 - parseInt(b[1])/2;
 	//	b[2] = parseInt(b[2]) - parseInt(pb[2]);
 	//	b[3] = parseInt(b[3]) - parseInt(pb[3]);
 		var parentName = parentLayer.name;
@@ -92,58 +156,57 @@ function proc_layer(art_layer, parentLayer){
 	else
 	{
 		parsed_info.x = parseInt(b[0])/2;
-		parsed_info.y = parseInt(b[1])/2;
+		parsed_info.y = 480 - parseInt(b[1])/2;
 		parsed_info.w = parseInt(b[2] - b[0])/2;
 		parsed_info.h = parseInt(b[3] - b[1])/2;
 	}
-	//	retina屏
+	*/
 
-	//	是Controller时需要减64
-	if( parentLayer == 'root')
-	{
-		if( -1 != doc_name.indexOf("Controller") && doc_name != "StoryViewController.psd")
-		{
-			parsed_info.y = parsed_info.y -64;
-		}
-	}
-	parsed_info.classname = getClassName(name);
-	parsed_info.name = getInstanceName(name);
+	//  解析属性内容
 	var attr = getAttr(name);
-	
 	if( null != attr){
 		for(var key in attr){
 			parsed_info[key] = attr[key];
 		}
 	}
 
-	//	看是否存在设置定位点
-	if( 7 == parsed_info.ac )
-	{
-		parsed_info.acx=0;
-		parsed_info.acy=1;
-		parsed_info.py = 'parentView.bounds.size.height';
-		parsed_info.px = 0;
-	}
-
-	if( parsed_info.f == 1)
-	{
-		//全屏模式，放在底部
-		parsed_info.y = 'parentView.bounds.size.height - 500 + '+parsed_info.y;
-	}
-
+	//	透明
 	if( parsed_info.a != undefined)
 	{
 		parsed_info.update  = parsed_info.name+'.alpha='+parsed_info.a+';';
 	}
 
+	//	文字层
 	if( LayerKind.TEXT == art_layer.kind)
 	{
+		if( !!parsed_info.fnt)
+		{
+			switch(parsed_info.fnt)
+			{
+				case 'num':
+				parsed_info.fnt='hb_number';
+				break;
+
+				default:
+				break;
+			}
+		}
+
+		if( !!parsed_info.tag )
+		{
+			parsed_info.c_tag = '';
+		}
+
 		//	颜色
+		/*
 		parsed_info.r = art_layer.textItem.color.rgb.red/255;
 		parsed_info.g = art_layer.textItem.color.rgb.green/255;
 		parsed_info.b = art_layer.textItem.color.rgb.blue/255;
+		*/
 		parsed_info.text= art_layer.textItem.contents.replace(/\r|\n/ig, "\\n");
 		parsed_info.fontsize = parseInt(art_layer.textItem.size)/2;
+		//	处理多行文本
+		/*
 		var index = parsed_info.text.indexOf('\\n');
 		if( -1 == index)
 		{
@@ -159,6 +222,7 @@ function proc_layer(art_layer, parentLayer){
 			parsed_info.w = oneline.length * parsed_info.fontsize;
 		}
 		parsed_info.h+=1*parsed_info.l;
+		*/
 	}
 	
 	if( LayerKind.TEXT == art_layer.kind && null == parsed_info.classname){
@@ -171,7 +235,7 @@ function proc_layer(art_layer, parentLayer){
 		parsed_info.g = art_layer.textItem.color.rgb.green/255;
 		parsed_info.b = art_layer.textItem.color.rgb.blue/255;
 		//	文本
-		var code = substitute(UILabel, parsed_info);
+		var code = substitute(Label, parsed_info);
 		header += code;
 		
 		return;
@@ -182,6 +246,8 @@ function proc_layer(art_layer, parentLayer){
 	header += code;
 	
 	if( undefined != parsed_info.nm ){
+		/*
+		// 取消了自动导出图片功能
 		art_layer.copy();
 		var newDoc = app.documents.add(parsed_info.w*2, parsed_info.h*2, 72.0, "tmp", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
 		newDoc.paste();
@@ -193,6 +259,7 @@ function proc_layer(art_layer, parentLayer){
 			save_png(newDoc, image_name);
 		}
 		newDoc.close(SaveOptions.DONOTSAVECHANGES);
+		*/
 	}
 }
 
@@ -204,7 +271,16 @@ function save_png(doc, fileName){
 	fileName += '@2x.png';
     doc.saveAs(new File(save_path+fileName), saveOptions, true, Extension.LOWERCASE);
 }
-//	C++对象
+/**	解析默认值
+ *	<x>,<y>左下角坐标
+ *	<w>,<h>宽度与高度
+ *	<l>	字体,有几行
+ *	<name> 变量
+ *	<ct> c代表comment注释,表明模板中某行是否需要被注释 
+ *	<c_tag> 注释掉设置tag的行
+ *  <className> 类名与PSD文件同名
+ *  <fileName> 文件名
+ */
 function object(){
 	this.parent = 'this';			//初始
 	this.x = 0;
@@ -213,17 +289,17 @@ function object(){
 	this.h = 0;
 	this.l = 1;
 	this.name = '';
+	this.c_tag = '//';
 	this.ct = '//';
 	this.cs = '//';
-	this.classname = '';
-	//this.ifName= 'LoginViewController';
-	this.ifName=doc_name.substring(0,doc_name.lastIndexOf('.'));
-	this.cgName=this.ifName+'Category';
-	this.view= '//';
-	this.controller= '';
+	this.fileName=doc_name.substring(0,doc_name.lastIndexOf('.'));
+	this.className=doc_name.substring(0,doc_name.lastIndexOf('.'));
 }
 
-//	获取类型名
+/** 获取类型名
+ * <xxx> 尖括号中的字符串代表类型
+ * 其值为template中定义的tpl类型
+ */
 function getClassName(string){
 	var re = /\<(.*)\>/;
 	var result = re.exec(string);
@@ -233,7 +309,9 @@ function getClassName(string){
 	return null;
 }
 
-//	获取实例名
+/**	获取实例名
+ *	(xxx)圆括号中的字符串代表变量名,可以为任意字符串
+ */
 function getInstanceName(string){
 	var re = /\((.*)\)/;
 	var result = re.exec(string);
@@ -243,7 +321,11 @@ function getInstanceName(string){
 	return null;
 }
 
-//	获取属性
+/**	获取属性
+ *	{xxx}大括号中是一些属性值
+ *  用来配置<xxx>中对应的类型
+ */
+
 function getAttr(string){
 	var re = /(\{.*\})/;
 	var result = re.exec(string);

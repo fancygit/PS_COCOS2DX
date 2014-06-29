@@ -4,8 +4,16 @@
  *	Author : dotboy
  */
  
+#include "cocos2d.h"
+#include "ui/UIButton.h"
+
+USING_NS_CC;
+using namespace ui;
  
-class <fileName>:public Layer
+class <className>:public Layer
 {
 public:
 	virtual bool init() {
+		if( !Layer::init()){
+			return false;
+		}
