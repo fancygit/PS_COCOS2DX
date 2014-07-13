@@ -1,4 +1,4 @@
-		<name> = Layer::create();
+		<c_d><name> = Layer::create();
 		<name>->setPosition(Point(<x>, <y>));
 		<parent>->addChild(<name>);
 

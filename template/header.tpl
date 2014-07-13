@@ -12,6 +12,8 @@ using namespace ui;
  
 class <className>:public Layer
 {
+protected:
+<def>
 public:
 	virtual bool init() {
 		if( !Layer::init()){

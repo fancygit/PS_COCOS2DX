@@ -6,8 +6,9 @@ var tpl_save_path = "~/Tools/PS_COCOS2DX/template/";
 //	输出文件的路径
 //var dest_file = "~/Tools/PS_COCOS2DX/output/"+doc_name.replace(/\..*/, '.h');
 var dest_file = "~/Projects/ios/FlowerFormer/Classes/PSUI/"+doc_name.replace(/\..*/, '.h');
-//	导出图片的路径(暂时没有导出)
-var save_path = "~/Projects/YOYO/YOYO/images/";
+//	导出图片的路径
+var save_path = "~/Projects/ios/FlowerFormer/Resources/images";
+var export_png = 0;
 
 /**
  * @brief 读取模板文件
@@ -28,7 +29,8 @@ var UIButton = readTpl('UIButton.tpl');
 var Sprite = readTpl('Sprite.tpl');
 var Label = readTpl('Label.tpl');
 
-header = substitute(header, new object);
+output = "";
+var head_info = new object();
 
 /**
  *	处理组
@@ -68,7 +70,7 @@ function proc_group(layers, parentLayer){
 			//	获取源字串
 			var source_string = getSourceString(classname);
 			var code = substitute(source_string, parsed_info);
-			header += code;
+			output += code;
 			b=null;
 			proc_group(layer.layers, layer);
 		}
@@ -84,7 +86,7 @@ function proc_group(layers, parentLayer){
  */
 function proc_position(sel_bounds, parent_bounds, parsed_info)
 {
-	var screen_height = 960;
+	var screen_height = 1136;
 	parsed_info.w = parseInt(sel_bounds[2]-sel_bounds[0]);
 	parsed_info.h = parseInt(sel_bounds[3]-sel_bounds[1]);
 	parsed_info.leftx = parseInt(sel_bounds[0]);
@@ -236,30 +238,58 @@ function proc_layer(art_layer, parentLayer){
 		parsed_info.b = art_layer.textItem.color.rgb.blue/255;
 		//	文本
 		var code = substitute(Label, parsed_info);
-		header += code;
+		output += code;
 		
 		return;
 	}
 	
 	var source_string = getSourceString(parsed_info.classname);
 	var code = substitute(source_string, parsed_info);
-	header += code;
+	output += code;
+
+	//	判断是否需要自定义变量
+	if( '//' == parsed_info.c_d )
+	{
+		if(parsed_info.classname == "UIButton")
+		{
+			head_info.def += '\t'+"Button"+'\t*'+parsed_info.name+';\n';
+		}
+		else
+		{
+			head_info.def += '\t'+parsed_info.classname+'\t*'+parsed_info.name+';\n';
+		}
+	}
 	
-	if( undefined != parsed_info.nm ){
-		/*
-		// 取消了自动导出图片功能
-		art_layer.copy();
-		var newDoc = app.documents.add(parsed_info.w*2, parsed_info.h*2, 72.0, "tmp", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
-		newDoc.paste();
-		image_name = parsed_info.nm;
-		if( undefined == image_name){
-			image_name = parsed_info.normal;
+	if( 1 == export_png )
+	{
+		if( undefined != parsed_info.tn ){
+			art_layer.copy();
+			var newDoc = app.documents.add(parsed_info.w*2, parsed_info.h*2, 72.0, "tmp", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
+			newDoc.paste();
+			image_name = parsed_info.tn;
+			if( undefined == image_name){
+				image_name = parsed_info.normal;
+			}
+			if( undefined != image_name){
+				save_png(newDoc, image_name);
+			}
+			newDoc.close(SaveOptions.DONOTSAVECHANGES);
 		}
-		if( undefined != image_name){
-			save_png(newDoc, image_name);
+
+		if( undefined != parsed_info.th ){
+			// 取消了自动导出图片功能
+			art_layer.copy();
+			var newDoc = app.documents.add(parsed_info.w*2, parsed_info.h*2, 72.0, "tmp", NewDocumentMode.RGB, DocumentFill.TRANSPARENT);
+			newDoc.paste();
+			image_name = parsed_info.th;
+			if( undefined == image_name){
+				image_name = parsed_info.normal;
+			}
+			if( undefined != image_name){
+				save_png(newDoc, image_name);
+			}
+			newDoc.close(SaveOptions.DONOTSAVECHANGES);
 		}
-		newDoc.close(SaveOptions.DONOTSAVECHANGES);
-		*/
 	}
 }
 
@@ -268,7 +298,7 @@ function save_png(doc, fileName){
     var saveOptions = new PNGSaveOptions();
     saveOptions.interlaced = true;
 	//fileName = fileName.replace(/\./,'@2x.');
-	fileName += '@2x.png';
+	fileName += '.png';
     doc.saveAs(new File(save_path+fileName), saveOptions, true, Extension.LOWERCASE);
 }
 /**	解析默认值
@@ -278,6 +308,7 @@ function save_png(doc, fileName){
  *	<name> 变量
  *	<ct> c代表comment注释,表明模板中某行是否需要被注释 
  *	<c_tag> 注释掉设置tag的行
+ *	<c_d> 注释掉设置定义的行
  *  <className> 类名与PSD文件同名
  *  <fileName> 文件名
  */
@@ -290,10 +321,12 @@ function object(){
 	this.l = 1;
 	this.name = '';
 	this.c_tag = '//';
+	this.c_d = '//';
 	this.ct = '//';
 	this.cs = '//';
 	this.fileName=doc_name.substring(0,doc_name.lastIndexOf('.'));
 	this.className=doc_name.substring(0,doc_name.lastIndexOf('.'));
+	this.def = "";
 }
 
 /** 获取类型名
@@ -367,14 +400,15 @@ function substitute(str, obj){
 
 //	遍历所有的层
 proc_group(doc.layers,'root');
+header = substitute(header, head_info);
 
-header += footer;
+output = header + output + footer;
 var file = new File(dest_file);
 file.encoding="UTF-8";
 file.lineFeed="windows";
 file.open("w");
 file.write('');
-file.write(header);
+file.write(output);
 file.close();
 
 
