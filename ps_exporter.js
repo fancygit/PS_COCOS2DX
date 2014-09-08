@@ -7,8 +7,8 @@ var tpl_save_path = "~/Tools/PS_COCOS2DX/template/";
 //var dest_file = "~/Tools/PS_COCOS2DX/output/"+doc_name.replace(/\..*/, '.h');
 var dest_file = "~/Projects/ios/FlowerFormer/Classes/PSUI/"+doc_name.replace(/\..*/, '.h');
 //	导出图片的路径
-var save_path = "~/Projects/ios/FlowerFormer/Resources/images";
-var export_png = 0;
+var save_path = "~/Projects/ios/FlowerFormer/Resources/images/";
+var export_png = 1;
 
 /**
  * @brief 读取模板文件
@@ -240,6 +240,10 @@ function proc_layer(art_layer, parentLayer){
 		var code = substitute(Label, parsed_info);
 		output += code;
 		
+		if( '//' == parsed_info.c_d )
+		{
+			head_info.def += '\t'+'Label'+'\t*'+parsed_info.name+';\n';
+		}
 		return;
 	}
 	
@@ -254,7 +258,7 @@ function proc_layer(art_layer, parentLayer){
 		{
 			head_info.def += '\t'+"Button"+'\t*'+parsed_info.name+';\n';
 		}
-		else
+		else if(!!parsed_info.classname)
 		{
 			head_info.def += '\t'+parsed_info.classname+'\t*'+parsed_info.name+';\n';
 		}
