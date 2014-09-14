@@ -28,6 +28,7 @@ var Layer = readTpl('Layer.tpl');
 var UIButton = readTpl('UIButton.tpl');
 var Sprite = readTpl('Sprite.tpl');
 var Label = readTpl('Label.tpl');
+var Menu = readTpl('Menu.tpl');
 
 output = "";
 var head_info = new object();
