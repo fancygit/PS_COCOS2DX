@@ -6,8 +6,10 @@
  
 #include "cocos2d.h"
 #include "ui/UIButton.h"
+#include "extensions/cocos-ext.h"
 
 USING_NS_CC;
+USING_NS_CC_EXT;
 using namespace ui;
  
 class <className>:public Layer

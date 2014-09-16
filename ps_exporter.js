@@ -25,10 +25,12 @@ function readTpl(name){
 var header = readTpl('header.tpl');
 var footer = readTpl('footer.tpl');
 var Layer = readTpl('Layer.tpl');
+var LayerColor = readTpl('LayerColor.tpl');
 var UIButton = readTpl('UIButton.tpl');
 var Sprite = readTpl('Sprite.tpl');
 var Label = readTpl('Label.tpl');
 var Menu = readTpl('Menu.tpl');
+var ControlSwitch = readTpl('Switch.tpl');
 
 output = "";
 var head_info = new object();
@@ -59,10 +61,10 @@ function proc_group(layers, parentLayer){
 			var bounds = layer.bounds;
 			var parsed_info = new object();
 
-			parsed_info.x = parseInt(bounds[0])/2;
-			parsed_info.y = parseInt(bounds[1])/2 - 64;
-			parsed_info.w = parseInt(bounds[2] - bounds[0])/2;
-			parsed_info.h = parseInt(bounds[3] - bounds[1])/2;
+			parsed_info.w = parseInt(bounds[2]-bounds[0]);
+			parsed_info.h = parseInt(bounds[3]-bounds[1]);
+			parsed_info.leftx = parseInt(bounds[0]);
+			parsed_info.topy  = parseInt(bounds[1]);
 
 			//	classname是指实例对象的类名,而非导出的整体的类名
 			//	导出的类名与文件名一致
@@ -70,9 +72,16 @@ function proc_group(layers, parentLayer){
 			parsed_info.name = getInstanceName(layer.name);
 			//	获取源字串
 			var source_string = getSourceString(classname);
+			var attr = getAttr(layer.name);
+			if( null != attr){
+				for(var key in attr){
+					parsed_info[key] = attr[key];
+				}
+			}
 			var code = substitute(source_string, parsed_info);
 			output += code;
-			b=null;
+			head_info.def += '\t'+classname+'\t*'+parsed_info.name+';\n';
+
 			proc_group(layer.layers, layer);
 		}
 	}
@@ -114,6 +123,8 @@ function proc_position(sel_bounds, parent_bounds, parsed_info)
 		default:
 		break;
 	}
+	//相对于父层的leftx topy
+
 	parsed_info.x = x;
 	parsed_info.y = screen_height - y;
 
@@ -140,30 +151,10 @@ function proc_layer(art_layer, parentLayer){
 	var parent_bounds = parentLayer.bounds;
 	proc_position(bounds , parent_bounds, parsed_info);
 
-	/*
-	//	未处理嵌套dotboy
-	if( parentLayer != 'root')
+	if( !!parent_bounds )
 	{
-		var pb = parentLayer.bounds;
-		parsed_info.w = parseInt(b[2] - b[0])/2;
-		parsed_info.h = parseInt(b[3] - b[1])/2;
-		b[0] = parseInt(b[0]) - parseInt(pb[0]);
-		b[1] = parseInt(b[1]) - parseInt(pb[1]);
-		parsed_info.x = parseInt(b[0])/2;
-		parsed_info.y = 480 - parseInt(b[1])/2;
-	//	b[2] = parseInt(b[2]) - parseInt(pb[2]);
-	//	b[3] = parseInt(b[3]) - parseInt(pb[3]);
-		var parentName = parentLayer.name;
-		parsed_info.parent = getInstanceName(parentName);
+		parsed_info.parent = getInstanceName(parentLayer.name);
 	}
-	else
-	{
-		parsed_info.x = parseInt(b[0])/2;
-		parsed_info.y = 480 - parseInt(b[1])/2;
-		parsed_info.w = parseInt(b[2] - b[0])/2;
-		parsed_info.h = parseInt(b[3] - b[1])/2;
-	}
-	*/
 
 	//  解析属性内容
 	var attr = getAttr(name);
@@ -332,6 +323,11 @@ function object(){
 	this.fileName=doc_name.substring(0,doc_name.lastIndexOf('.'));
 	this.className=doc_name.substring(0,doc_name.lastIndexOf('.'));
 	this.def = "";
+	//颜色
+	this.r=0;
+	this.g=0;
+	this.b=0;
+	this.a=0;
 }
 
 /** 获取类型名
